@@ -1,0 +1,927 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: Pirate Proof - Delivery command center and smart lock API
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: auth
+    description: Authentication operations
+  - name: deliveries
+    description: Package delivery tracking
+  - name: lock
+    description: Smart lock control
+  - name: pins
+    description: Lock PIN management
+  - name: notifications
+    description: In-app notifications
+  - name: email-accounts
+    description: Connected email accounts for parsing
+
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  /auth/register:
+    post:
+      operationId: register
+      tags: [auth]
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterInput"
+      responses:
+        "201":
+          description: User registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResult"
+        "400":
+          description: Bad request
+
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Log in
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginInput"
+      responses:
+        "200":
+          description: Logged in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResult"
+        "401":
+          description: Invalid credentials
+
+  /auth/me:
+    get:
+      operationId: getMe
+      tags: [auth]
+      summary: Get current user
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          description: Unauthorized
+
+  /deliveries:
+    get:
+      operationId: listDeliveries
+      tags: [deliveries]
+      summary: List all deliveries for the authenticated user
+      responses:
+        "200":
+          description: List of deliveries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Delivery"
+    post:
+      operationId: createDelivery
+      tags: [deliveries]
+      summary: Add a delivery manually
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeliveryInput"
+      responses:
+        "201":
+          description: Delivery created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Delivery"
+        "400":
+          description: Bad request
+
+  /deliveries/sync:
+    post:
+      operationId: syncDeliveries
+      tags: [deliveries]
+      summary: Refresh tracking status for all deliveries
+      responses:
+        "200":
+          description: Synced deliveries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Delivery"
+
+  /deliveries/{id}:
+    get:
+      operationId: getDelivery
+      tags: [deliveries]
+      summary: Get a delivery by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Delivery found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Delivery"
+        "404":
+          description: Not found
+    delete:
+      operationId: deleteDelivery
+      tags: [deliveries]
+      summary: Delete a delivery
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /lock/status:
+    get:
+      operationId: getLockStatus
+      tags: [lock]
+      summary: Get current lock status
+      responses:
+        "200":
+          description: Lock status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LockStatus"
+
+  /lock/toggle:
+    post:
+      operationId: toggleLock
+      tags: [lock]
+      summary: Lock or unlock the smart lock
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LockToggleInput"
+      responses:
+        "200":
+          description: Updated lock status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LockStatus"
+
+  /lock/history:
+    get:
+      operationId: getLockHistory
+      tags: [lock]
+      summary: Get lock event history
+      responses:
+        "200":
+          description: List of lock events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LockEvent"
+
+  /lock/pins:
+    get:
+      operationId: listPins
+      tags: [pins]
+      summary: List all PIN codes
+      responses:
+        "200":
+          description: List of PINs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Pin"
+    post:
+      operationId: createPin
+      tags: [pins]
+      summary: Create a new PIN code
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PinInput"
+      responses:
+        "201":
+          description: PIN created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Pin"
+        "400":
+          description: Bad request
+
+  /lock/pins/{id}:
+    delete:
+      operationId: deletePin
+      tags: [pins]
+      summary: Delete a PIN code
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /deliveries/{id}/generate-code:
+    post:
+      operationId: generateAccessCode
+      tags: [deliveries]
+      summary: Generate and assign a smart access code to a delivery
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AssignCodeInput"
+      responses:
+        "200":
+          description: Access code generated and assigned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccessCodeResult"
+        "404":
+          description: Delivery not found
+
+  /deliveries/{id}/revoke-code:
+    post:
+      operationId: revokeAccessCode
+      tags: [deliveries]
+      summary: Revoke the active access code for a delivery
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Code revoked
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success]
+                properties:
+                  success:
+                    type: boolean
+        "404":
+          description: Delivery not found
+
+  /deliveries/{id}/instructions:
+    get:
+      operationId: getDeliveryInstructions
+      tags: [deliveries]
+      summary: Get delivery instructions with access code message
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Delivery instructions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeliveryInstructions"
+        "404":
+          description: Delivery not found
+
+  /lock/logs:
+    get:
+      operationId: getLockLogs
+      tags: [lock]
+      summary: Get detailed lock access log with delivery associations
+      responses:
+        "200":
+          description: Lock event log
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LockEvent"
+
+  /track:
+    post:
+      operationId: trackPackage
+      tags: [deliveries]
+      summary: Create or refresh a real-time tracker via EasyPost
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TrackInput"
+      responses:
+        "200":
+          description: Tracking result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Delivery"
+        "400":
+          description: Bad request
+
+  /lock/lock:
+    post:
+      operationId: lockBox
+      tags: [lock]
+      summary: Lock the smart box (IoT endpoint)
+      responses:
+        "200":
+          description: Lock status after locking
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LockStatus"
+
+  /lock/unlock:
+    post:
+      operationId: unlockBox
+      tags: [lock]
+      summary: Unlock the smart box (IoT endpoint)
+      responses:
+        "200":
+          description: Lock status after unlocking
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LockStatus"
+
+  /lock/set-pin:
+    post:
+      operationId: setLockPin
+      tags: [lock]
+      summary: Set a PIN on the IoT lock
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetPinInput"
+      responses:
+        "201":
+          description: PIN created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Pin"
+        "400":
+          description: Bad request
+
+  /lock/delivery-mode:
+    post:
+      operationId: setDeliveryMode
+      tags: [lock]
+      summary: Enable or disable delivery mode auto-unlock
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeliveryModeInput"
+      responses:
+        "200":
+          description: Updated lock status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LockStatus"
+
+  /notifications/push-token:
+    post:
+      operationId: registerPushToken
+      tags: [notifications]
+      summary: Register or update device push token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PushTokenInput"
+      responses:
+        "200":
+          description: Token registered
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok]
+                properties:
+                  ok:
+                    type: boolean
+
+  /notifications:
+    get:
+      operationId: listNotifications
+      tags: [notifications]
+      summary: List all notifications
+      responses:
+        "200":
+          description: List of notifications
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Notification"
+
+  /notifications/{id}/read:
+    patch:
+      operationId: markNotificationRead
+      tags: [notifications]
+      summary: Mark notification as read
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Updated notification
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Notification"
+
+  /email-accounts:
+    get:
+      operationId: listEmailAccounts
+      tags: [email-accounts]
+      summary: List connected email accounts
+      responses:
+        "200":
+          description: List of email accounts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/EmailAccount"
+    post:
+      operationId: connectEmailAccount
+      tags: [email-accounts]
+      summary: Connect an email account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmailAccountInput"
+      responses:
+        "201":
+          description: Email account connected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmailAccount"
+
+  /email-accounts/{id}:
+    delete:
+      operationId: deleteEmailAccount
+      tags: [email-accounts]
+      summary: Disconnect an email account
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Disconnected
+
+  /email-accounts/{id}/sync:
+    post:
+      operationId: syncEmailAccount
+      tags: [email-accounts]
+      summary: Scan inbox for new tracking numbers
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Sync result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmailSyncResult"
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+
+    RegisterInput:
+      type: object
+      required: [email, password, name]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 6
+        name:
+          type: string
+
+    LoginInput:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+
+    User:
+      type: object
+      required: [id, email, name, createdAt]
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+        name:
+          type: string
+        phone:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+
+    AuthResult:
+      type: object
+      required: [token, user]
+      properties:
+        token:
+          type: string
+        user:
+          $ref: "#/components/schemas/User"
+
+    Delivery:
+      type: object
+      required: [id, userId, carrier, trackingNumber, status, deliveryModeActive, codeStatus, codeSingleUse, createdAt, updatedAt]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        carrier:
+          type: string
+          enum: [amazon, ups, fedex, usps, dhl, other]
+        trackingNumber:
+          type: string
+        description:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: [pending, in_transit, out_for_delivery, delivered, exception, unknown]
+        estimatedDelivery:
+          type: ["string", "null"]
+        lastLocation:
+          type: ["string", "null"]
+        deliveryModeActive:
+          type: boolean
+        accessCode:
+          type: ["string", "null"]
+        codeStatus:
+          type: string
+          enum: [none, active, used, expired]
+        codeExpires:
+          type: ["string", "null"]
+          format: date-time
+        codeSingleUse:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    DeliveryInput:
+      type: object
+      required: [carrier, trackingNumber]
+      properties:
+        carrier:
+          type: string
+          enum: [amazon, ups, fedex, usps, dhl, other]
+        trackingNumber:
+          type: string
+        description:
+          type: string
+
+    TrackInput:
+      type: object
+      required: [carrier, trackingNumber]
+      properties:
+        carrier:
+          type: string
+          enum: [amazon, ups, fedex, usps, dhl, other]
+        trackingNumber:
+          type: string
+
+    SetPinInput:
+      type: object
+      required: [label, pinCode, type]
+      properties:
+        label:
+          type: string
+        pinCode:
+          type: string
+          minLength: 4
+          maxLength: 8
+        type:
+          type: string
+          enum: [permanent, one_time, time_restricted, delivery]
+
+    DeliveryModeInput:
+      type: object
+      required: [enabled]
+      properties:
+        enabled:
+          type: boolean
+        timeoutMinutes:
+          type: integer
+          minimum: 5
+          maximum: 480
+          description: Minutes before auto-relock (5–480). Defaults to 30.
+
+    LockStatus:
+      type: object
+      required: [id, isLocked, lastAction, lastActionAt, deliveryModeEnabled, deliveryModeTimeout, batteryLevel]
+      properties:
+        id:
+          type: integer
+        isLocked:
+          type: boolean
+        lastAction:
+          type: string
+          enum: [locked, unlocked, pin_used, delivery_mode]
+        lastActionAt:
+          type: string
+          format: date-time
+        deliveryModeEnabled:
+          type: boolean
+        deliveryModeTimeout:
+          type: integer
+          description: Minutes before auto-relock when delivery mode triggers an unlock
+        batteryLevel:
+          type: integer
+
+    LockToggleInput:
+      type: object
+      required: [action]
+      properties:
+        action:
+          type: string
+          enum: [lock, unlock]
+
+    LockEvent:
+      type: object
+      required: [id, action, triggeredBy, occurredAt]
+      properties:
+        id:
+          type: integer
+        action:
+          type: string
+          enum: [locked, unlocked, pin_used, delivery_mode_enabled, delivery_mode_disabled, access_code_used]
+        triggeredBy:
+          type: string
+          enum: [user, pin, system, delivery_mode, access_code]
+        pinLabel:
+          type: ["string", "null"]
+        codeUsed:
+          type: ["string", "null"]
+        deliveryId:
+          type: ["integer", "null"]
+        occurredAt:
+          type: string
+          format: date-time
+
+    AccessCodeResult:
+      type: object
+      required: [code, codeStatus, codeSingleUse]
+      properties:
+        code:
+          type: string
+        codeStatus:
+          type: string
+          enum: [none, active, used, expired]
+        codeExpires:
+          type: ["string", "null"]
+          format: date-time
+        codeSingleUse:
+          type: boolean
+        instructions:
+          type: string
+
+    AssignCodeInput:
+      type: object
+      properties:
+        singleUse:
+          type: boolean
+          description: Deactivate code after first use
+        expiresAt:
+          type: string
+          format: date-time
+          description: Explicit expiry timestamp. Defaults to end of today.
+
+    DeliveryInstructions:
+      type: object
+      required: [message, code, expiresAt]
+      properties:
+        message:
+          type: string
+        code:
+          type: ["string", "null"]
+        expiresAt:
+          type: ["string", "null"]
+
+    Pin:
+      type: object
+      required: [id, label, pinCode, type, isActive, usageCount, createdAt]
+      properties:
+        id:
+          type: integer
+        label:
+          type: string
+        pinCode:
+          type: string
+        type:
+          type: string
+          enum: [permanent, one_time, time_restricted, delivery]
+        isActive:
+          type: boolean
+        usageCount:
+          type: integer
+        expiresAt:
+          type: ["string", "null"]
+        validFrom:
+          type: ["string", "null"]
+        validUntil:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+
+    PinInput:
+      type: object
+      required: [label, pinCode, type]
+      properties:
+        label:
+          type: string
+        pinCode:
+          type: string
+          minLength: 4
+          maxLength: 8
+        type:
+          type: string
+          enum: [permanent, one_time, time_restricted, delivery]
+        expiresAt:
+          type: string
+        validFrom:
+          type: string
+        validUntil:
+          type: string
+
+    Notification:
+      type: object
+      required: [id, title, body, type, isRead, createdAt]
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        body:
+          type: string
+        type:
+          type: string
+          enum: [delivery_update, lock_event, system, email_sync]
+        isRead:
+          type: boolean
+        deliveryId:
+          type: ["integer", "null"]
+        createdAt:
+          type: string
+          format: date-time
+
+    EmailAccount:
+      type: object
+      required: [id, email, provider, isActive, lastSyncAt, createdAt]
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+        provider:
+          type: string
+          enum: [gmail, outlook, other]
+        isActive:
+          type: boolean
+        lastSyncAt:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+
+    EmailAccountInput:
+      type: object
+      required: [email, provider]
+      properties:
+        email:
+          type: string
+          format: email
+        provider:
+          type: string
+          enum: [gmail, outlook, other]
+
+    PushTokenInput:
+      type: object
+      required: [token]
+      properties:
+        token:
+          type: string
+          description: Expo push token (ExponentPushToken[...])
+
+    EmailSyncResult:
+      type: object
+      required: [found, imported]
+      properties:
+        found:
+          type: integer
+        imported:
+          type: integer
+        deliveries:
+          type: array
+          items:
+            $ref: "#/components/schemas/Delivery"
